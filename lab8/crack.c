@@ -40,19 +40,24 @@ pthread_mutex_lock(&index_mutex);
 
 char *word =lines[idx];
 word[strcspn(word,"\n")]='\0';
-char *hash = crypt(word, salt_format);
-        if (!hash)continue;
- if (strcmp(hash, target_hash)==0) {
-	    pthread_mutex_lock(&progress_mutex);
-            found =1;
+	struct crypt_data data;
+        data.initialized = 0;
+        char *hash = crypt_r(word, salt_format, &data);
+        if (!hash)
+            continue;
+        if (strcmp(hash, target_hash) == 0) {
+            pthread_mutex_lock(&progress_mutex);
+            found = 1;
             strncpy(found_password, word, MAX_LINE);
             pthread_mutex_unlock(&progress_mutex);
-            break;}
+            break;
+        }
 
         pthread_mutex_lock(&progress_mutex);
         processed_lines++;
-        pthread_mutex_unlock(&progress_mutex);}return NULL;}
-
+        pthread_mutex_unlock(&progress_mutex);
+    }
+    return NULL;}
 int main(int argc, char *argv[]) {
 if (argc < 3) {
         fprintf(stderr, "HELP %s <target_hash> <dictionary_file> [thread_count]\n", argv[0]);
@@ -82,6 +87,8 @@ total_lines = 0;
     for(size_t i = 0; i < dict_size; i++) {
         if (dict_mem[i] == '\n')
             total_lines++;}
+if (dict_size > 0 && dict_mem[dict_size - 1] != '\n') {
+    total_lines++;}
 lines =malloc(total_lines * sizeof(char *));
     if (!lines) {
         perror("malloc lines");
