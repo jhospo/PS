@@ -71,7 +71,7 @@ struct stat st;
 dict_size = st.st_size;
 
 
-dict_mem = mmap(NULL, dict_size, PROT_READ, MAP_PRIVATE, fd, 0);
+dict_mem = mmap(NULL, dict_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (dict_mem == MAP_FAILED) {
         perror("mmap");
         close(fd);
