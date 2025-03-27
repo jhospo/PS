@@ -1,24 +1,33 @@
 #include <stdio.h>
 #include <string.h>
-#include "mem_mena.h"
-int main(void) {
-char *str = (char *)mem_allock(NULL, 100);
-    if(!str){
-        fprintf(stderr, "mem_allock erro: %d\n", mem_errno);
-        return 1;}
-snprintf(str, 100, "start, mem menager!!!");
-    printf("allocated str: %s\n", str);
+#include "mem_manager.h"
 
-str = (char *)mem_allock(str, 200);
-    if (!str) {
-        fprintf(stderr, "mem_allock (realloc) error: %d\n", mem_errno);
-        return 1;}
-strcat(str, "wiecej po relo");
-    printf("reallocated str: %s\n", str);
-if (mem_free(str) != 0) {
-        fprintf(stderr, "mem_free error: %d\n", mem_errno);
+int main() {
+    char *buffer = mem_allock(NULL, 100);
+    if (!buffer) {
+        printf("Allocation error: %d\n", mem_errno);
         return 1;
-    }printf("zwolniono pamiec!!!.\n");
-if (mem_free(str) != 0) {
-        printf("nie pozwala ponownie zwolnic- git!!!! erro: %d).\n", mem_errno);
-    }return 0;}
+    }
+
+    strcpy(buffer, "Simple memory manager test.");
+    printf("Buffer: %s\n", buffer);
+
+    buffer = mem_allock(buffer, 200);
+    if (!buffer) {
+        printf("Reallocation error: %d\n", mem_errno);
+        return 1;
+    }
+
+    strcat(buffer, " Realloc worked!");
+    printf("Updated buffer: %s\n", buffer);
+
+    if (mem_free(buffer) != 0)
+        printf("Free failed: %d\n", mem_errno);
+    else
+        printf("Memory freed successfully.\n");
+
+    if (mem_free(buffer) != 0)
+        printf("Second free blocked (correct): %d\n", mem_errno);
+
+    return 0;
+}
