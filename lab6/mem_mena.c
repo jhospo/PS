@@ -1,91 +1,103 @@
-#include "mem_mena.h"
-#include <stdio.h>
+#include "mem_manager.h"
+#include <stdlib.h>
 #include <string.h>
-typedef struct Allocation {
-    void *ptr;
+
+typedef struct MemoryBlock {
+    void *pointer;
     unsigned int size;
-    struct Allocation *next;
-} Allocation;
+    struct MemoryBlock *next;
+} MemoryBlock;
 
-static Allocation *alloc_list = NULL;
+static MemoryBlock *allocated_blocks = NULL;
 int mem_errno = MEM_SUCCESS;
-static int add_allocation(void *ptr, unsigned int size) {
-    Allocation *node =(Allocation *)malloc(sizeof(Allocation));
-    if(!node){
-        mem_errno= MEM_ERR_MALLOC;
-        return -1;}
-    node->ptr =ptr;
-    node->size= size;
-    node->next= alloc_list;
-    alloc_list=node;
-    return 0;}
-static int remove_allocation(void *ptr) {
-    Allocation*current =alloc_list,*prev =NULL;
-    while(current){
-        if (current->ptr==ptr) {
-            if (prev)
-                prev->next= current->next;
-            else
-                alloc_list=current->next;
-            free(current);
-            return 0;}
-        prev = current;
-        current=current->next;}return -1;}
-static void free_all_allocations(void) {
-    Allocation *current = alloc_list;
-    while(current){
-        Allocation*next= current->next;
-        free(current->ptr);
-        free(current);
-        current = next;}
-  alloc_list = NULL;}
-void init_mem_manager(void) {
-    atexit(free_all_allocations);
-}
-void *mem_allock(void*ptr, unsigned int size) {
-    void *new_ptr= NULL;
-    if (ptr==NULL) {new_ptr = calloc(1, size);
-        if (!new_ptr) {
-            mem_errno =MEM_ERR_CALLOC;
-            return NULL;}if (add_allocation(new_ptr, size) != 0) {
-            free(new_ptr);
-            return NULL;}}else{
-	Allocation *current = alloc_list;
-        int found = 0;
-        while (current) {
-            if (current->ptr == ptr) {
-                found = 1;
-                break;}
-            current=current->next;}
-        if (!found){
-            mem_errno=MEM_ERR_INVALID_PTR;
-            return NULL;}
-	new_ptr = realloc(ptr, size);
-        if (!new_ptr) {
-            mem_errno = MEM_ERR_REALLOC;
-            return NULL;}
-	if (size > current->size) {
-            memset((char *)new_ptr + current->size, 0, size - current->size);}
-	current->ptr = new_ptr;
-        current->size = size;}return new_ptr;}
-	int mem_free(void *ptr) {
-    if (!ptr) {
-        mem_errno = MEM_ERR_INVALID_PTR;
-        return -1;}
-	Allocation *current = alloc_list;
-    int found = 0;
+
+static void free_all_memory_blocks(void) {
+    MemoryBlock *current = allocated_blocks;
     while (current) {
-        if (current->ptr == ptr) {
-            found = 1;
-            break;}current = current->next;
-    }if (!found){
-        mem_errno= MEM_ERR_INVALID_PTR;
-        return -1;}
-    free(ptr);
-    if (remove_allocation(ptr) != 0) {
-        mem_errno = MEM_ERR_FREE;
-        return -1;}return 0;}
+        MemoryBlock *next = current->next;
+        free(current->pointer);
+        free(current);
+        current = next;
+    }
+    allocated_blocks = NULL;
+}
 
+static MemoryBlock *find_block(void *pointer) {
+    MemoryBlock *current = allocated_blocks;
+    while (current) {
+        if (current->pointer == pointer)
+            return current;
+        current = current->next;
+    }
+    return NULL;
+}
 
+void *mem_allock(void *pointer, unsigned int size) {
+    if (pointer == NULL) {
+        void *new_pointer = calloc(1, size);
+        if (!new_pointer) {
+            mem_errno = MEM_ERROR_CALLOC;
+            return NULL;
+        }
 
+        MemoryBlock *block = malloc(sizeof(MemoryBlock));
+        if (!block) {
+            free(new_pointer);
+            mem_errno = MEM_ERROR_MALLOC;
+            return NULL;
+        }
 
+        block->pointer = new_pointer;
+        block->size = size;
+        block->next = allocated_blocks;
+        allocated_blocks = block;
+
+        return new_pointer;
+    }
+
+    MemoryBlock *block = find_block(pointer);
+    if (!block) {
+        mem_errno = MEM_ERROR_INVALID;
+        return NULL;
+    }
+
+    void *resized_pointer = realloc(pointer, size);
+    if (!resized_pointer) {
+        mem_errno = MEM_ERROR_REALLOC;
+        return NULL;
+    }
+
+    if (size > block->size)
+        memset((char *)resized_pointer + block->size, 0, size - block->size);
+
+    block->pointer = resized_pointer;
+    block->size = size;
+    return resized_pointer;
+}
+
+int mem_free(void *pointer) {
+    MemoryBlock *current = allocated_blocks, *previous = NULL;
+
+    while (current) {
+        if (current->pointer == pointer) {
+            if (previous)
+                previous->next = current->next;
+            else
+                allocated_blocks = current->next;
+
+            free(current->pointer);
+            free(current);
+            return 0;
+        }
+        previous = current;
+        current = current->next;
+    }
+
+    mem_errno = MEM_ERROR_INVALID;
+    return -1;
+}
+
+__attribute__((constructor))
+static void initialize_memory_manager() {
+    atexit(free_all_memory_blocks);
+}
