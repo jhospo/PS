@@ -1,9 +1,7 @@
-#ifndef MEM_MANA_H
-#define MEM_MANA_H
+#ifndef MEM_MENA_H
+#define MEM_MENA_H
 
 #include <stdlib.h>
-
-extern int mem_errno;
 
 #define MEM_SUCCESS         0
 #define MEM_ERR_MALLOC      1
@@ -12,8 +10,9 @@ extern int mem_errno;
 #define MEM_ERR_CALLOC      4
 #define MEM_ERR_REALLOC     5
 
+extern int mem_errno;
+
 void *mem_allock(void *ptr, unsigned int size);
 int mem_free(void *ptr);
-void init_mem_manager(void);
 
 #endif
