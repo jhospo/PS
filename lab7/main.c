@@ -52,7 +52,6 @@ int main(int argc, char **argv) {
     }
 
     threads = malloc(sizeof(thread_data) * threads_num);
-    pthread_key_create(&timer_key, free);
 
     srand(time(NULL));
     for (int i = 0; i < threads_num; i++) {
